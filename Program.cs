@@ -4,7 +4,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 🔥 CORS para permitir Angular
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngular",
@@ -13,18 +12,11 @@ builder.Services.AddCors(options =>
             policy.WithOrigins("http://localhost:4200")
                   .AllowAnyHeader()
                   .AllowAnyMethod();
-        }); 
+        });
 });
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-// 🔥 Activar CORS
 app.UseCors("AllowAngular");
 
 app.UseHttpsRedirection();

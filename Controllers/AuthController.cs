@@ -2,6 +2,7 @@
 using AWS5.Models;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace AWS5.Controllers
 {
@@ -9,27 +10,39 @@ namespace AWS5.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private static List<User> users = new List<User>();
+        private readonly AppDbContext _context;
+
+        public AuthController(AppDbContext context)
+        {
+            _context = context;
+        }
 
         [HttpPost("register")]
-        public IActionResult Register([FromBody] User newUser)
+        public async Task<IActionResult> Register([FromBody] User newUser)
         {
-            if (users.Any(u => u.Username == newUser.Username))
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == newUser.Username);
+
+            if (existingUser != null)
                 return BadRequest("El usuario ya existe");
 
-            users.Add(newUser);
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+
             return Ok("Usuario registrado correctamente");
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = users.FirstOrDefault(u =>
-                u.Username == request.Username &&
-                u.Password == request.Password);
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == request.Username);
 
             if (user == null)
                 return Unauthorized("Credenciales incorrectas");
+
+            if (user.Password != request.Password)
+                return Unauthorized("La contraseña es incorrecta");
 
             return Ok(new
             {

@@ -1,5 +1,6 @@
 ﻿using AWS5.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -9,11 +10,12 @@ namespace AWS5.Controllers
     [Route("api/[controller]")]
     public class PeliculasController : ControllerBase
     {
-        private static List<Pelicula> peliculas = new List<Pelicula>
+        private readonly AppDbContext _context;
+
+        public PeliculasController(AppDbContext context)
         {
-            new Pelicula { Id = 1, Titulo = "Inception", Director = "Christopher Nolan", Anio = 2010, Genero = "Ciencia Ficción", Calificacion = 9.0 },
-            new Pelicula { Id = 2, Titulo = "Interstellar", Director = "Christopher Nolan", Anio = 2014, Genero = "Ciencia Ficción", Calificacion = 8.6 }
-        };
+            _context = context;
+        }
 
         private bool ValidarToken()
         {
@@ -21,13 +23,87 @@ namespace AWS5.Controllers
             return authHeader == "Bearer token_simple_123";
         }
 
+        //  GET: api/peliculas
         [HttpGet]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
             if (!ValidarToken())
                 return Unauthorized("Sesión inválida");
 
+            var peliculas = await _context.Peliculas.ToListAsync();
             return Ok(peliculas);
+        }
+
+        //  GET: api/peliculas/5
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            if (!ValidarToken())
+                return Unauthorized("Sesión inválida");
+
+            var pelicula = await _context.Peliculas.FindAsync(id);
+
+            if (pelicula == null)
+                return NotFound("Película no encontrada");
+
+            return Ok(pelicula);
+        }
+
+        //  POST: api/peliculas
+        [HttpPost]
+        public async Task<IActionResult> Post([FromBody] Pelicula pelicula)
+        {
+            if (!ValidarToken())
+                return Unauthorized("Sesión inválida");
+
+            _context.Peliculas.Add(pelicula);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetById), new { id = pelicula.Id }, pelicula);
+        }
+
+        //  PUT: api/peliculas/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] Pelicula peliculaActualizada)
+        {
+            if (!ValidarToken())
+                return Unauthorized("Sesión inválida");
+
+            if (id != peliculaActualizada.Id)
+                return BadRequest("El ID no coincide");
+
+            var pelicula = await _context.Peliculas.FindAsync(id);
+
+            if (pelicula == null)
+                return NotFound("Película no encontrada");
+
+            pelicula.Titulo = peliculaActualizada.Titulo;
+            pelicula.Director = peliculaActualizada.Director;
+            pelicula.Anio = peliculaActualizada.Anio;
+            pelicula.Genero = peliculaActualizada.Genero;
+            pelicula.Calificacion = peliculaActualizada.Calificacion;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(pelicula);
+        }
+
+        //  DELETE: api/peliculas/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            if (!ValidarToken())
+                return Unauthorized("Sesión inválida");
+
+            var pelicula = await _context.Peliculas.FindAsync(id);
+
+            if (pelicula == null)
+                return NotFound("Película no encontrada");
+
+            _context.Peliculas.Remove(pelicula);
+            await _context.SaveChangesAsync();
+
+            return Ok();
         }
     }
 }
